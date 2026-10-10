@@ -330,106 +330,128 @@ icon-only buttons. - Focus management for dialogs. - Respect
 Use buttons for actions and links for navigation. - Announce important
 status changes accessibly without excessive live-region chatter.
 
-### 6.4 CSS and styling strategy
+### 6.4 Animation principles
 
-**Recommended default:** use plain CSS or CSS Modules with locally
-bundled assets. This is the simplest way to keep styling reliable
-offline.
+Use motion to clarify state changes, not to distract or pressure users.
 
-Tailwind CSS is allowed only if: - It is installed and configured at
-build time. - All utility classes are compiled into local CSS during the
-Vercel build. - No runtime CDN, remote stylesheet, or external font is
-required for the app to render. - Dynamic class names are not assembled
-in ways the compiler cannot detect; use explicit class maps. - The
-compiled CSS is included in the production build and cached by the
-service worker.
+- Use short transitions for button press/hover, focus, card expansion, dialogs, and task completion.
+- Optional chart reveal animations are acceptable, but values must remain understandable without motion.
+- Respect `prefers-reduced-motion: reduce` by disabling nonessential transitions and scroll-triggered effects.
+- Keep most transitions around 120–240 ms. Never delay interaction until an animation ends.
+- Avoid flashing, continuous decorative motion, guilt-inducing red pulses, and compulsive reward loops.
+- Keep motion rules in `css/animations.css`; use CSS first and vanilla JavaScript only when needed. Clean up observers/listeners.
 
-Do not use Tailwind's Play CDN in production. Do not rely on Google
-Fonts, remote icon kits, remote image assets, or CDN scripts for core
-UI. Prefer system fonts, local SVG icons, and locally bundled assets.
-The app should remain visually consistent when offline.
+### 6.5 Charts and data visualization
 
-------------------------------------------------------------------------
+Build charts without a charting framework or external CDN. Prefer native SVG for responsive, accessible charts; Canvas is allowed only where a clear performance benefit exists.
+
+MVP charts:
+- Weekly task activity: completed tasks per day.
+- Spending by category for a selected period.
+- Budget usage: spending versus budget limit.
+- Estimate versus actual duration only when enough valid data exists.
+
+Chart requirements:
+- Use actual stored records only; never seed fake user activity.
+- Handle empty, zero, and incomplete data gracefully.
+- Include titles, date ranges, units, legends, and a textual summary; never rely on color alone.
+- Add SVG `<title>` and `<desc>` where appropriate and provide text/table summaries for important values.
+- Do not mix currencies in one chart.
+- Charts must resize and remain legible on mobile and work offline.
+- Animation is optional and must respect reduced-motion settings.
+
+### 6.6 CSS and styling strategy
+
+Use plain CSS only:
+- Define design tokens with CSS custom properties in `css/tokens.css`.
+- Split styles by responsibility across local CSS files.
+- Use mobile-first media queries, Grid, Flexbox, and fluid sizing such as `clamp()` with suitable fallbacks.
+- Use local SVG icons and system fonts. No remote fonts, images, stylesheets, scripts, or icon CDNs for core UI.
+- Toggle semantic CSS classes from JavaScript instead of assembling large style strings.
+- Cache all core CSS in the service worker.
+
+Do not use Tailwind, Bootstrap, CSS-in-JS, or any styling framework. The core UI must look consistent online and offline.
 
 ## 7. Technical Architecture
 
 ### 7.1 Recommended stack
 
-Use a small, stable stack that the Codex agent can maintain: -
-**Framework:** Next.js with App Router, deployed to Vercel. -
-**Language:** TypeScript with strict type checking. - **UI:** React. -
-**Styling:** plain CSS / CSS Modules by default; Tailwind is optional
-under the offline constraints above. - **Persistence:** a typed storage
-repository over `localStorage`. - **Offline/PWA:** Web App Manifest +
-service worker, preferably using a maintained PWA integration compatible
-with the selected Next.js version. - **Testing:** unit tests for
-business logic and end-to-end tests for critical flows. -
-**Linting/formatting:** ESLint and Prettier or an equivalent consistent
-setup.
+- **Core:** semantic HTML5, CSS3, and vanilla JavaScript (ES modules), with no UI framework.
+- **Hosting:** Vercel static site deployment.
+- **Styling:** plain local CSS and CSS custom properties.
+- **Persistence:** a versioned repository module over `localStorage`.
+- **Offline/PWA:** `manifest.webmanifest` and a vanilla JavaScript service worker.
+- **Charts:** native SVG by default, optionally Canvas, rendered by vanilla JavaScript.
+- **Animation:** CSS transitions/keyframes, with minimal JavaScript for stateful effects.
+- **Testing:** optional lightweight tests plus manual browser QA; test tooling is not a runtime dependency.
 
-Before choosing a PWA plugin, verify compatibility with the current
-Next.js version. Do not add a library merely for convenience if it
-introduces build instability. Pin compatible dependency versions in the
-lockfile.
+Do not introduce React, Next.js, Vue, Angular, Svelte, jQuery, Bootstrap, Tailwind, charting libraries, or other application frameworks. Do not add a bundler unless a concrete, documented requirement justifies it. The deployed app should work as static files over HTTPS.
 
 ### 7.2 Architecture boundaries
 
-Keep the code organized by responsibility. Suggested structure (adapt
-only when the chosen framework requires it):
+Keep files small and organized by responsibility. Suggested structure:
 
-``` text
+```text
 /
-├── public/
-│   ├── manifest.webmanifest
-│   ├── icons/
-│   └── offline.html                 # optional fallback page
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                 # Today / Home
-│   │   ├── tasks/
-│   │   ├── money/
-│   │   ├── insights/
-│   │   └── settings/
-│   ├── components/
-│   │   ├── layout/
-│   │   ├── tasks/
-│   │   ├── money/
-│   │   ├── feedback/
-│   │   └── ui/
-│   ├── features/
-│   │   ├── tasks/
-│   │   ├── money/
-│   │   ├── focus/
-│   │   └── insights/
-│   ├── lib/
-│   │   ├── storage/
-│   │   ├── dates/
-│   │   ├── currency/
-│   │   ├── validation/
-│   │   └── export-import/
-│   ├── styles/
-│   └── types/
-├── tests/
+├── index.html
+├── tasks.html                    # optional separate page
+├── money.html                    # optional separate page
+├── insights.html                 # optional separate page
+├── settings.html                 # optional separate page
+├── manifest.webmanifest
+├── sw.js
+├── offline.html                  # optional fallback
+├── assets/icons/                 # local app icons
+├── css/
+│   ├── tokens.css
+│   ├── base.css
+│   ├── layout.css
+│   ├── components.css
+│   ├── animations.css
+│   └── charts.css
+├── js/
+│   ├── app.js
+│   ├── state.js
+│   ├── storage.js
+│   ├── schema.js
+│   ├── tasks.js
+│   ├── focus.js
+│   ├── money.js
+│   ├── insights.js
+│   ├── charts.js
+│   ├── dates.js
+│   ├── currency.js
+│   ├── validation.js
+│   └── export-import.js
+├── tests/                        # optional automated tests
 ├── README.md
-├── package.json
-└── ...
+└── vercel.json                   # optional, only if needed
 ```
 
-Keep business rules outside React components. UI components should call
-feature/service functions, not independently calculate financial totals
-or manipulate raw storage keys.
+Use a multi-page static site or a simple client-side view system, but ensure every required screen is reachable and direct routes work offline. Avoid introducing a framework just to manage navigation.
 
-### 7.3 Data flow
+### 7.3 Vanilla JavaScript module conventions
+
+- Use semantic HTML for structure, CSS for presentation, and JavaScript for behavior.
+- Prefer `<script type="module" src="./js/app.js"></script>` and relative imports between modules.
+- Avoid inline event handlers such as `onclick="..."`; attach listeners with `addEventListener`.
+- Avoid global mutable state. Keep application state in a dedicated module with explicit read/update functions.
+- Use event delegation for repeated task and expense lists where appropriate.
+- Render user-provided text with `textContent` or safe DOM APIs; never concatenate user input into `innerHTML`.
+- Keep domain logic independent from DOM rendering so it can be tested separately.
+- Use ordinary links for navigation where practical. If using a single-page view, preserve usable URLs/history and support direct route loading.
+- Core functionality must not depend on a bundler, transpiler, or framework runtime.
+
+### 7.4 Data flow
 
 Use a simple local-first flow:
 
-`User action → input validation → domain/service function → storage repository → state update → UI feedback`
+`User action → input validation → domain function → storage repository → in-memory state update → DOM render → UI feedback`
 
 Requirements: - Components must not read/write arbitrary `localStorage`
 keys directly. - All persisted data must pass through a single versioned
 repository layer. - Keep pure business logic separate so it can be
-tested without rendering React. - Show a clear error if storage is
+tested without rendering the DOM. - Show a clear error if storage is
 unavailable or full. Never claim data was saved if persistence failed. -
 The UI should update only after a successful write, or use an explicitly
 designed optimistic update with rollback on failure. - Listen for the
@@ -600,25 +622,16 @@ required external APIs.
 
 ### 9.2 Service worker caching
 
-Implement a service worker with a deliberate caching strategy: - **App
-shell and versioned static assets:** precache or cache-first. - **Hashed
-build assets:** cache-first, since their filenames change when content
-changes. - **Navigation requests:** network-first with a cached
-app-shell fallback, or an equivalent tested strategy appropriate to the
-framework. - **Nonessential remote resources:** do not fetch them for
-core screens. - **API requests:** none are required for the MVP.
-
-Requirements: - Use a supported PWA/service-worker integration
-compatible with the chosen framework version. - Avoid hand-written
-caching logic unless the team can test it thoroughly. - Cache only
-same-origin application assets needed for offline rendering. - Handle
-service-worker install, activation, and version updates without trapping
-users on an old broken build. - Show a small, non-blocking
-offline/online status indicator if useful. - Do not force a page reload
-unexpectedly while the user is editing data. - Test direct navigation to
-each required route while offline, not only navigation from the home
-screen. - Provide an understandable offline fallback for a route that
-cannot be served.
+Implement a service worker in plain JavaScript with a deliberate, tested strategy:
+- Precache the app shell, required CSS/JS modules, manifest, icons, and offline fallback.
+- Cache versioned static assets cache-first; their filenames should change when content changes where practical.
+- For navigation requests, use a tested network-first strategy with a cached app-shell/offline fallback. If using multiple HTML pages, precache each required page.
+- Core features must not depend on network requests or remote APIs.
+- Cache only same-origin application assets needed for offline rendering.
+- Handle install, activation, cache versioning, and updates without unexpectedly discarding unsaved user input.
+- Do not force a page reload while the user is editing. Offer an update notice when appropriate.
+- Test direct navigation to each required route while offline, not only navigation from the home screen.
+- If service-worker registration fails, the online app should still work and explain that offline support may be unavailable.
 
 ### 9.3 Installability and home-screen support
 
@@ -641,9 +654,8 @@ be fully usable in a normal browser tab if installation is unavailable.
 
 ### 9.4 Offline visual stability
 
--   All CSS must be local and included in the production bundle.
--   Do not use CDN-based Tailwind, external stylesheets, remote
-    JavaScript, or remote icon libraries.
+-   All CSS must be local static files and included in the service-worker cache.
+-   Do not use Tailwind, external stylesheets, remote JavaScript, or remote icon libraries.
 -   Prefer system font stacks and locally bundled icons.
 -   Avoid required external image assets.
 -   Test offline with cache cleared and then after one successful online
@@ -658,8 +670,7 @@ Edge on desktop and Android. - Firefox on desktop and Android where
 supported. - Safari on macOS and iOS.
 
 Implementation rules: - Use standards-based HTML, CSS, and JavaScript. -
-Define a supported browser baseline and configure TypeScript/build
-targets accordingly. - Avoid experimental APIs for core functionality. -
+Define a supported browser baseline and use standards-based JavaScript syntax supported by the target browsers. - Avoid experimental APIs for core functionality. -
 Feature-detect optional capabilities such as install prompts, file
 sharing, and certain storage APIs. - Provide a fallback for unsupported
 APIs. - Test touch and keyboard interactions. - Do not depend on hover
@@ -771,156 +782,92 @@ describes what has and has not been implemented.
 
 ## 14. Deployment on Vercel
 
-1.  Create the project using the selected Next.js setup and TypeScript.
-2.  Commit the package lockfile and pin compatible dependency versions.
-3.  Configure the build command and output according to the selected
-    Next.js/Vercel setup; do not force static export unless every chosen
-    feature supports it.
-4.  Add the PWA manifest, local icons, and service-worker integration.
-5.  Verify the deployed app is served over HTTPS.
-6.  Confirm the service worker registers only in production or the
-    intended secure context, according to the integration.
-7.  Test online first, then reload with DevTools network set to Offline.
-8.  Test installation on supported devices.
-9.  Verify the Vercel deployment does not require runtime secrets or
-    server-side persistence for core features.
-10. Document the deployment URL and a repeatable release procedure.
+1. Keep the app as static files: HTML, local CSS, local JavaScript modules, manifest, icons, and service worker.
+2. Commit the project to Git and import the repository into Vercel.
+3. Configure Vercel to serve the project root as a static site. No framework preset or build command is required unless optional tooling is added.
+4. Add `vercel.json` only for genuinely needed headers or redirects. Avoid rewrites that break service-worker scope or offline routes.
+5. Verify the deployed site uses HTTPS.
+6. Register the service worker from the correct same-origin path and scope.
+7. Test online first, then reload with DevTools set to Offline.
+8. Test installation on supported devices.
+9. Verify no runtime API, serverless function, secret, or remote dependency is needed for core features.
+10. Document the deployment URL and release procedure.
 
-**Important:** Vercel is the hosting platform, not the local database. A
-browser `localStorage` app does not need a database service on Vercel
-for this MVP.
-
-------------------------------------------------------------------------
+**Important:** Vercel is the hosting platform, not the local database. A browser `localStorage` app does not need a database service for this MVP.
 
 ## 15. Implementation Plan for Codex
 
-Build in small, verifiable stages. Do not generate the entire
-application in one giant unreviewed pass.
+Build in small, verifiable stages. Do not generate the entire app in one unreviewed pass.
 
-### Stage 0 --- Inspect and plan
+### Stage 0 — Inspect and plan
+- Inspect the repository before changing files.
+- Identify existing files and deployment settings.
+- If empty, initialize the static HTML/CSS/JavaScript structure described above.
+- Present a concise plan and list assumptions.
+- Do not overwrite existing user work without need.
 
--   Inspect the existing repository before changing files.
--   Identify existing framework, scripts, dependencies, and conventions.
--   If the repository is empty, initialize the recommended stack.
--   Present a concise implementation plan and list any assumptions.
--   Do not overwrite existing user work without explicit need.
+### Stage 1 — Foundation
+- Create semantic HTML, CSS tokens, responsive shell, navigation, and accessible base styles.
+- Add animation tokens and reduced-motion rules.
+- Implement data shapes with JSDoc, validation, date/currency utilities, and storage repository.
+- Add tests for storage and core business logic where test tooling is available.
 
-### Stage 1 --- Foundation
+### Stage 2 — Tasks and daily focus
+- Implement task CRUD, subtasks, focus selection, filters, empty states, and gentle rescheduling review.
+- Add tests before expanding features.
 
--   Configure TypeScript, linting, formatting, CSS tokens, responsive
-    shell, navigation, and semantic layout.
--   Implement the domain types, validation, date/currency utilities, and
-    storage repository.
--   Add unit tests for storage and core business logic.
+### Stage 3 — Money
+- Implement expense CRUD, budget configuration, integer-based calculations, and currency formatting.
+- Add calculation and persistence tests.
 
-### Stage 2 --- Tasks and daily focus
+### Stage 4 — Reflection and data tools
+- Implement weekly summaries, native SVG charts, export/import, schema validation, and reset confirmation.
+- Ensure insights are derived from real stored records and formulas are documented.
 
--   Implement task CRUD, subtasks, focus selection, filters, empty
-    states, and gentle rescheduling review.
--   Add tests before expanding to more features.
+### Stage 5 — PWA and offline
+- Add manifest, icons, service worker, caching rules, offline status, and installation guidance.
+- Test a production deployment offline; a development server is not sufficient proof.
 
-### Stage 3 --- Money
+### Stage 6 — Hardening
+- Run available lint/check/test commands and verify the deployed static site.
+- Check responsive layouts, accessibility, cross-browser behavior, charts, reduced-motion behavior, and console output.
+- Fix failures instead of hiding them. Update this README if a documented requirement must change, and explain why.
 
--   Implement expense CRUD, budget configuration, correct integer-based
-    calculations, and currency formatting.
--   Add calculation and persistence tests.
-
-### Stage 4 --- Reflection and data tools
-
--   Implement weekly summaries, export/import, schema validation, and
-    reset confirmation.
--   Ensure insights are derived from stored records and formulas are
-    documented.
-
-### Stage 5 --- PWA and offline
-
--   Add manifest, icons, service worker, caching rules, offline status,
-    and installation guidance.
--   Test production build offline; development mode alone is not
-    sufficient proof.
-
-### Stage 6 --- Hardening
-
--   Run lint, type-check, unit tests, end-to-end tests, and production
-    build.
--   Fix failures instead of suppressing them.
--   Check responsive layouts, accessibility, cross-browser behavior, and
-    console output.
--   Update this README if an implementation decision must differ,
-    explaining why.
-
-At the end of each stage, report: - Files created or changed. - Features
-completed. - Commands executed and their results. - Known limitations or
-remaining failures. - The next recommended stage.
-
-------------------------------------------------------------------------
+At the end of each stage, report files changed, features completed, commands actually run and results, known limitations, and the next stage.
 
 ## 16. Copy-Paste Master Prompt for Codex
 
-Use the following prompt after placing this README at the repository
-root.
+Use this prompt after placing this README at the repository root.
 
-> You are a senior product engineer, TypeScript/React architect,
-> accessibility specialist, and PWA engineer. Build this project
-> according to the root `README.md`, which is the source of truth for
-> product behavior, UX, architecture, storage, offline operation,
-> privacy, testing, and acceptance criteria.
+> You are a senior front-end engineer, vanilla JavaScript architect, accessibility specialist, and PWA engineer. Build this project according to the root `README.md`, which is the source of truth for product behavior, UX, architecture, storage, offline operation, privacy, testing, and acceptance criteria.
 >
-> **First inspect the repository.** Do not assume it is empty, and do
-> not overwrite existing work. Summarize the current stack and propose a
-> staged plan. Then implement the project incrementally, starting with
-> the foundation and storage/business logic before building all screens.
+> **First inspect the repository.** Do not assume it is empty and do not overwrite existing work. Summarize the current structure and propose a staged plan. Then implement incrementally, starting with foundation and storage/business logic before building every screen.
 >
-> **Non-negotiable requirements:** 1. Mobile-first, responsive UI that
-> remains usable from 320px wide through desktop. 2. PWA install support
-> using a valid manifest, local icons, and a compatible service worker.
-> 3. Core functionality works offline after the app shell and required
-> assets have been cached. 4. No CDN styles, remote fonts, remote
-> scripts, or required external APIs for core features. CSS must be
-> bundled locally; plain CSS/CSS Modules are preferred. Tailwind is
-> acceptable only when compiled locally at build time. 5. Use typed,
-> versioned local persistence through one repository layer. Do not
-> access `localStorage` directly from UI components. Validate
-> persisted/imported data and handle storage failures without falsely
-> claiming a save succeeded. 6. Implement tasks, subtasks, daily focus,
-> review-based gentle rescheduling, expense tracking, budget
-> calculations, weekly reflection, and JSON export/import as specified.
-> 7. Keep domain/business logic out of UI components. Use strict
-> TypeScript, semantic HTML, keyboard accessibility, visible focus, and
-> restrained non-judgmental language. 8. Do not add cloud sync,
-> accounts, AI APIs, analytics that transmit personal data, or other
-> unrequested infrastructure. 9. Do not claim universal browser
-> compatibility. Target current major browsers and provide graceful
-> fallbacks for optional APIs. 10. Do not silently delete or migrate
-> data. Use schema versions, explicit validation, confirmations for
-> destructive actions, and tests for critical behavior.
+> **Non-negotiable requirements:**
+> 1. Use only semantic HTML5, plain CSS3, and vanilla JavaScript ES modules. No React, Next.js, Vue, Angular, Svelte, jQuery, Tailwind, Bootstrap, or other application/UI framework.
+> 2. Deploy as a static site on Vercel; do not add a build step unless a specific, documented need justifies it.
+> 3. Mobile-first, responsive UI from 320px through desktop.
+> 4. PWA install support with a valid manifest, local icons, and a vanilla JavaScript service worker.
+> 5. Core functionality works offline after the app shell and required assets have been cached.
+> 6. No CDN styles, remote fonts, remote scripts, external chart libraries, or required external APIs for core features. All CSS, JavaScript, icons, animations, and charts must be local.
+> 7. Use a versioned local persistence repository. UI modules must not access arbitrary `localStorage` keys directly. Validate persisted/imported data and handle storage errors honestly.
+> 8. Implement tasks, subtasks, daily focus, review-based gentle rescheduling, expenses, budgets, weekly reflection, native SVG/Canvas charts, and JSON export/import as specified.
+> 9. Keep domain logic separate from DOM rendering. Use small JavaScript modules, JSDoc, semantic HTML, keyboard accessibility, visible focus, and non-judgmental language.
+> 10. Add purposeful, lightweight CSS animations; respect `prefers-reduced-motion`, and never block interaction for an animation.
+> 11. Do not add cloud sync, accounts, AI APIs, tracking that transmits personal data, or other unrequested infrastructure.
+> 12. Do not claim universal browser compatibility. Target current major browsers and provide graceful fallbacks for optional APIs.
+> 13. Never silently delete or migrate data. Use schema versions, validation, explicit destructive-action confirmations, and tests for critical behavior.
 >
-> **Execution rules:** - Work in small stages: inspect/plan, foundation,
-> tasks/focus, money, insights/data tools, PWA/offline, hardening. -
-> Before each major implementation stage, state the intended changes
-> briefly. - After each stage, run the relevant checks and report exact
-> results. - Run the repository's lint, type-check, unit tests,
-> end-to-end tests where configured, and production build. Fix real
-> failures rather than suppressing errors or weakening TypeScript. - Add
-> tests for domain logic, budget arithmetic, date boundaries,
-> import/export, persistence failures, and key user journeys. - Test
-> offline behavior against a production build, not only the development
-> server. Check direct route loading while offline. - If a requirement
-> is ambiguous, choose the simplest safe behavior consistent with the
-> README and document the assumption. Ask only when a decision could
-> cause data loss or materially change product scope. - Do not leave
-> fake buttons, dead navigation, placeholder screens presented as
-> complete, or TODOs in core flows. - Do not claim a test passed unless
-> you actually ran it. If a browser/device test cannot be run in the
-> environment, state that clearly and provide a manual test checklist.
+> **Execution rules:**
+> - Work in stages: inspect/plan, foundation, tasks/focus, money, insights/charts/data tools, PWA/offline, and hardening.
+> - Before each major stage, briefly state the intended changes. After each stage, run relevant checks and report exact results.
+> - Test domain logic, budget arithmetic, date boundaries, import/export, storage failures, and key user journeys.
+> - Test offline behavior against the production build/deployment, including direct navigation while offline.
+> - If a requirement is ambiguous, choose the simplest safe behavior consistent with the README and document the assumption. Ask only when a decision could cause data loss or materially change scope.
+> - Do not leave fake buttons, dead navigation, placeholder screens presented as complete, or TODOs in core flows.
+> - Never claim a test passed unless it was actually run. If browser/device testing is unavailable, say so and provide a manual checklist.
 >
-> **Completion criteria:** the app builds successfully, critical flows
-> are implemented and tested, local data persists across refreshes, core
-> functionality works offline after caching, responsive and accessible
-> states are covered, and the README accurately reflects implementation
-> status. Begin by inspecting the repository and proposing Stage 0.
-
-------------------------------------------------------------------------
+> **Completion criteria:** the static app works, core flows are implemented and tested, data persists across refreshes, core functionality works offline after caching, animations respect reduced-motion, charts are responsive and accessible, and this README accurately describes what was verified. Begin by inspecting the repository and proposing Stage 0.
 
 ## 17. Additional Short Prompts for Follow-Up Work
 
@@ -937,7 +884,7 @@ Use one prompt at a time rather than asking Codex to rebuild everything.
 
 ### B. Verify offline/PWA behavior
 
-> Audit PWA installability and offline behavior against `README.md`.
+> Audit PWA installability and offline behavior for the vanilla HTML/CSS/JavaScript static app against `README.md`.
 > Inspect the manifest, icon sizes, service-worker scope, caching
 > strategy, navigation fallback, update behavior, and external asset
 > dependencies. Test the production build offline where the environment
@@ -988,7 +935,7 @@ Before calling the first release ready, verify:
 -   [ ] Direct offline navigation and service-worker updates have been
     tested.
 -   [ ] No core button, route, or form is a placeholder.
--   [ ] Lint, type-check, tests, and production build pass.
+-   [ ] Available lint/check/test commands pass, and the deployed static site loads correctly.
 -   [ ] Unsupported or untested browser behavior is documented honestly.
 
 ------------------------------------------------------------------------
