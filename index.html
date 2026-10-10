@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f4">
+  <meta name="description" content="Aplikasi sederhana untuk mengatur tugas dan pengeluaran pribadi.">
+  <title>Personal Life</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/simple.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="#tasks">Personal Life</a><span id="today-label"></span></header>
+  <nav class="nav" aria-label="Menu utama">
+    <a href="#tasks" data-view="tasks">Tugas</a>
+    <a href="#money" data-view="money">Keuangan</a>
+    <a href="#data" data-view="data">Data & pengaturan</a>
+  </nav>
+  <main id="main"><div id="view-root"></div></main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
